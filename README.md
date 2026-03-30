@@ -5,7 +5,8 @@ Upgrade your GitHub experience with custom enhancements.
 ## Features
 
 - **Improved Visibility Badges**: Replaces standard GitHub labels (Public/Private/Template) with high-visibility, color-coded borders. 
-- **Enhanced Repository Pagination**: Adds a full numerical pagination system to the repositories tab. 
+- **Enhanced Repository Pagination**: Adds a full numerical pagination system to the repositories tab.
+- **VS Code Button**: Adds a "VS Code" button to repository pages for quick access to open the repo in Visual Studio Code.
 
 ## Overview
 
@@ -13,6 +14,7 @@ Upgrade your GitHub experience with custom enhancements.
 | :---: | :---: | :---: |
 | Improved Visibility Badges | <img src="/docs/imgs/chrome_D1b5J0h1uG.png" alt="Before" width="400"> | <img src="/docs/imgs/chrome_YMzHmccx7l.png" alt="After" width="400"> |
 | Enhanced Repository Pagination | <img src="/docs/imgs/chrome_bogbNVEPxJ.png" alt="Before" width="600"> | <img src="/docs/imgs/chrome_NxNI4pnTLu.png" alt="After" width="600"> |
+| VS Code Button | <img src="/docs/imgs/chrome_g4z1Jg4qqH.png" alt="Before" width="400"> | <img src="/docs/imgs/chrome_CHmE21XY9y.png" alt="After" width="400"> |
 
 ## Installation
 
