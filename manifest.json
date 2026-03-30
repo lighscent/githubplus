@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "GithubPlus",
     "author": "xl1te (lighscent)",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Upgrade your github experience",
     "host_permissions": [
         "https://github.com/*"
@@ -13,8 +13,9 @@
                 "https://github.com/*"
             ],
             "js": [
-                "badges.js",
-                "pagination.js"
+                "scripts/badges.js",
+                "scripts/pagination.js",
+                "scripts/vscode.js"
             ],
             "run_at": "document_end"
         }

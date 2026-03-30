@@ -20,7 +20,7 @@ jobs:
       - name: Bundle extension (only js and json)
         run: |
           mkdir dist
-          cp *.js dist/
+          cp scripts/*.js dist/
           cp *.json dist/
           cd dist
           zip -r ../githubplus.zip .
