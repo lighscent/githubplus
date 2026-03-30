@@ -4,6 +4,11 @@
     "author": "xl1te (lighscent)",
     "version": "1.2.2",
     "description": "Upgrade your github experience",
+    "icons": {
+        "16": "assets/github.png",
+        "48": "assets/github.png",
+        "128": "assets/github.png"
+    },
     "host_permissions": [
         "https://github.com/*"
     ],
