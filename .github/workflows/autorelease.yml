@@ -1,5 +1,4 @@
-name: Auto Tag on Version Change
-
+name: AutoRelease 
 on:
   push:
     branches:
@@ -8,10 +7,10 @@ on:
       - 'manifest.json'
 
 jobs:
-  tag:
+  tag-and-release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,7 +29,7 @@ jobs:
           TAG="v${{ steps.get_version.outputs.VERSION }}"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "EXISTS=true" >> $GITHUB_OUTPUT
-            echo "Tag $TAG already exists."
+            echo "Le tag $TAG existe déjà."
           else
             echo "EXISTS=false" >> $GITHUB_OUTPUT
           fi
@@ -43,3 +42,22 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "$TAG"
           git push origin "$TAG"
+
+      - name: Bundle extension (only js and json)
+        if: steps.check_tag.outputs.EXISTS == 'false'
+        run: |
+          mkdir dist
+          cp scripts/*.js dist/
+          cp *.json dist/
+          cd dist
+          zip -r ../githubplus.zip .
+
+      - name: Create Release
+        if: steps.check_tag.outputs.EXISTS == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.get_version.outputs.VERSION }}"
+          files: githubplus.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
