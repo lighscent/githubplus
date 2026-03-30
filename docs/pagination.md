@@ -6,4 +6,4 @@ This module adds a full numerical pagination system to the repositories tab on G
 
 | Before | After |
 | :---: | :---: |
-| <img src="/docs/imgs/chrome_bogbNVEPxJ.png" alt="Before" width="400"> | <img src="/docs/imgs/chrome_NxNI4pnTLu.png" alt="After" width="400"> |
+| <img src="/docs/imgs/chrome_bogbNVEPxJ.png" alt="Before" width="500"> | <img src="/docs/imgs/chrome_NxNI4pnTLu.png" alt="After" width="500"> |
