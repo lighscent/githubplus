@@ -6,7 +6,7 @@
 
 **Upgrade your GitHub experience with custom enhancements and a streamlined interface.**
 
-[Features](#-features) • [Installation](#-installation) • [Visual Preview](#-visual-preview) • [FAQ](#-faq)
+[Features](#-what-are-the-features) • [Installation](#-how-to-install) • [Visual Preview](#-check-the-differences) • [FAQ](#-faq)
 
 </div>
 
