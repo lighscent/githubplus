@@ -51,10 +51,12 @@ GitHub+ is a browser extension designed to make your GitHub navigation smoother 
 
 > [!TIP]
 > **Is GitHub+ free?**
+> 
 > Yes, the extension is 100% free and open-source.
 
 > [!IMPORTANT]
 > **Is my data safe?**
+> 
 > Absolutely. GitHub+ does not collect any personal data. The extension operates entirely on the client-side and does not communicate with external servers.
 
 > [!NOTE]
