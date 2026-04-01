@@ -1,53 +1,70 @@
-# GitHub+
+# 🚀 GitHub+
 
-![Version](https://img.shields.io/github/v/release/lighscent/githubplus?style=flat-square&color=blue) ![License](https://img.shields.io/github/license/lighscent/githubplus?style=flat-square&color=important) ![Stars](https://img.shields.io/github/stars/lighscent/githubplus?style=flat-square&color=yellow) ![Issues](https://img.shields.io/github/issues/lighscent/githubplus?style=flat-square&color=success)
+<div align="center">
 
-Upgrade your GitHub experience with custom enhancements.
+![Version](https://img.shields.io/github/v/release/lighscent/githubplus?style=for-the-badge&color=3498db) ![License](https://img.shields.io/github/license/lighscent/githubplus?style=for-the-badge&color=e74c3c) ![Stars](https://img.shields.io/github/stars/lighscent/githubplus?style=for-the-badge&color=f1c40f) ![Issues](https://img.shields.io/github/issues/lighscent/githubplus?style=for-the-badge&color=2ecc71)
 
-## Why should I use GitHub+?
+**Upgrade your GitHub experience with custom enhancements and a streamlined interface.**
 
-GitHub+ is a browser extension designed to enhance your GitHub experience by adding useful features and improving the user interface. Whether you're a developer, project manager, or just an avid GitHub user, GitHub+ offers a range of enhancements to make your interactions with GitHub more efficient and enjoyable.
+[Features](#-features) • [Installation](#-installation) • [Visual Preview](#-visual-preview) • [FAQ](#-faq)
 
-## What are the features?
+</div>
 
-- **Improved Visibility Badges**: Replaces standard GitHub labels (Public/Private/Template) with high-visibility, color-coded borders. 
-- **Enhanced Repository Pagination**: Adds a full numerical pagination system to the repositories tab.
-- **VS Code Button**: Adds a "VS Code" button to repository pages for quick access to open the repo in Visual Studio Code.
+---
+
+## Why use GitHub+
+
+GitHub+ is a browser extension designed to make your GitHub navigation smoother and more visual. It bridges the gaps in the standard interface by adding clear visibility indicators and quick-access tools for developers, project managers, and power users.
+
+## What are the features
+
+* **Improved Visibility Badges**: Replaces standard labels with high-visibility, color-coded borders to instantly distinguish between Public, Private, and Template repositories.
+* **Enhanced Pagination**: Adds a full numerical pagination system to the repositories tab, allowing direct access to any page.
+* **VS Code Button**: Adds a dedicated button to repository pages to instantly open the repo in the Visual Studio Code web editor.
+
+---
 
 ## How to Install
 
-1. Download the latest version from the [releases page](../../releases).
-2. Open your browser's extensions page:
-   - **Brave**: `brave://extensions/`
-   - **Chrome**: `chrome://extensions/`
-   - **Firefox**: `about:debugging#/runtime/this-firefox` (Load Temporary Add-on)
-   - **Opera / Opera GX**: `opera://extensions/`
-3. Enable **Developer mode** (toggle in the top-right corner).
-4. Click **Load unpacked** (or **Load Temporary Add-on** for Firefox) and select the folder/archive containing these files.
+1. **Download**: Get the latest version from the [releases page](../../releases).
+2. **Open Extensions Page**:
+    * **Brave**: `brave://extensions/`
+    * **Chrome**: `chrome://extensions/`
+    * **Firefox**: `about:debugging#/runtime/this-firefox`
+    * **Opera**: `opera://extensions/`
+3. **Developer Mode**: Enable the toggle (usually in the top-right corner).
+4. **Load Extension**: Click **"Load unpacked"** and select the folder containing the project files.
 
-## See the difference
+---
+
+## Check the differences
 
 | Feature | Before | After |
-| :---: | :---: | :---: |
-| Improved Visibility Badges | <img src="/docs/imgs/chrome_D1b5J0h1uG.png" alt="Before" width="400"> | <img src="/docs/imgs/chrome_YMzHmccx7l.png" alt="After" width="400"> |
-| Enhanced Repository Pagination | <img src="/docs/imgs/chrome_bogbNVEPxJ.png" alt="Before" width="600"> | <img src="/docs/imgs/chrome_NxNI4pnTLu.png" alt="After" width="600"> |
-| VS Code Button | <img src="/docs/imgs/chrome_g4z1Jg4qqH.png" alt="Before" width="400"> | <img src="/docs/imgs/chrome_CHmE21XY9y.png" alt="After" width="400"> |
+| :--- | :---: | :---: |
+| **Visibility Badges** | <img src="/docs/imgs/chrome_D1b5J0h1uG.png" width="350"> | <img src="/docs/imgs/chrome_YMzHmccx7l.png" width="350"> |
+| **Pagination** | <img src="/docs/imgs/chrome_bogbNVEPxJ.png" width="350"> | <img src="/docs/imgs/chrome_NxNI4pnTLu.png" width="350"> |
+| **VS Code Button** | <img src="/docs/imgs/chrome_g4z1Jg4qqH.png" width="350"> | <img src="/docs/imgs/chrome_CHmE21XY9y.png" width="350"> |
 
+---
 
 ## FAQ
 
-**Q: Is GitHub+ free to use?**
-A: Yes, GitHub+ is completely free to use.
+> [!TIP]
+> **Is GitHub+ free?**
+> Yes, the extension is 100% free and open-source.
 
-**Q: Is GitHub+ will be available on the Chrome Web Store and Firefox Add-ons?**
-A: Yes, i'll publish GitHub+ on the Chrome Web Store and Firefox Add-ons in the future. For now, you can install it manually using the instructions above.
+> [!IMPORTANT]
+> **Is my data safe?**
+> Absolutely. GitHub+ does not collect any personal data. The extension operates entirely on the client-side and does not communicate with external servers.
 
-**Q: Did you get personal data from users?**
-A: No, GitHub+ does not collect any personal data from users. The extension operates entirely on the client side and does not send any data to external servers.
+> [!NOTE]
+> **Store Availability**
+> Official publication on the Chrome Web Store and Firefox Add-ons is planned for the near future to enable automatic updates.
 
-**Q: Can I contribute to GitHub+?**
-A: Absolutely! Contributions are welcome. You can fork the repository, make your changes, and submit a pull request.
+---
 
-## License
+## Contributing & License
 
-This project is released under the MIT License. See [LICENSE](LICENSE) for details.
+Contributions are welcome! If you have ideas for new features or improvements, feel free to open an issue or submit a pull request.
+
+This project is released under the **MIT License**. See [LICENSE](LICENSE) for details.
