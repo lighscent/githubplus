@@ -4,6 +4,12 @@
     "author": "xl1te (lighscent)",
     "version": "1.2.2",
     "description": "Upgrade your github experience",
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "githubplus@lighscent.github.com",
+            "strict_min_version": "109.0"
+        }
+    },
     "host_permissions": [
         "https://github.com/*"
     ],
