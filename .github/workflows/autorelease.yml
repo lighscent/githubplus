@@ -29,7 +29,6 @@ jobs:
           TAG="v${{ steps.get_version.outputs.VERSION }}"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "EXISTS=true" >> $GITHUB_OUTPUT
-            echo "Le tag $TAG existe déjà."
           else
             echo "EXISTS=false" >> $GITHUB_OUTPUT
           fi
@@ -43,21 +42,29 @@ jobs:
           git tag "$TAG"
           git push origin "$TAG"
 
-      - name: Bundle extension (only js and json)
+      - name: Bundle extension
         if: steps.check_tag.outputs.EXISTS == 'false'
         run: |
           mkdir -p dist/scripts
           cp scripts/*.js dist/scripts/
           cp *.json dist/
           cd dist
-          zip -r ../githubplus.zip .
+          
+          zip -r ../githubplus-brave-${{ steps.get_version.outputs.VERSION }}.zip .
+          zip -r ../githubplus-chrome-${{ steps.get_version.outputs.VERSION }}.zip .
+          zip -r ../githubplus-firefox-${{ steps.get_version.outputs.VERSION }}.zip .
+          zip -r ../githubplus-opera-${{ steps.get_version.outputs.VERSION }}.zip .
 
       - name: Create Release
         if: steps.check_tag.outputs.EXISTS == 'false'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "v${{ steps.get_version.outputs.VERSION }}"
-          files: githubplus.zip
+          files: |
+            githubplus-brave-${{ steps.get_version.outputs.VERSION }}.zip
+            githubplus-chrome-${{ steps.get_version.outputs.VERSION }}.zip
+            githubplus-firefox-${{ steps.get_version.outputs.VERSION }}.zip
+            githubplus-opera-${{ steps.get_version.outputs.VERSION }}.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
