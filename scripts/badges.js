@@ -2,7 +2,9 @@
     const STYLES = {
         'Public': { border: '2px solid #2da44e', color: '#2da44e' },
         'Private': { border: '2px solid #cf222e', color: '#cf222e' },
-        'Public template': { border: '2px solid #0969da', color: '#0969da' }
+        'Public template': { border: '2px solid #0969da', color: '#0969da' },
+        'Private archive': { border: '2px solid #c46022', color: '#c46022' },
+        'Public archive': { border: '2px solid #9E6A03', color: '#9E6A03' }
     };
 
     function applyStyles() {
