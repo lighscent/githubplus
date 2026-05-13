@@ -4,7 +4,7 @@
 
 ![Version](https://img.shields.io/github/v/release/lighscent/githubplus?style=for-the-badge&color=3498db) ![License](https://img.shields.io/github/license/lighscent/githubplus?style=for-the-badge&color=e74c3c) ![Stars](https://img.shields.io/github/stars/lighscent/githubplus?style=for-the-badge&color=f1c40f) ![Issues](https://img.shields.io/github/issues/lighscent/githubplus?style=for-the-badge&color=2ecc71)
 
-**Upgrade your GitHub experience with custom enhancements and a streamlined interface.**
+**Upgrade your GitHub experience with custom enhancements, repository insights, and a streamlined interface.**
 
 [Features](#-what-are-the-features) • [Installation](#-how-to-install) • [Visual Preview](#-check-the-differences) • [FAQ](#-faq)
 
@@ -14,13 +14,16 @@
 
 ## Why use GitHub+
 
-GitHub+ is a browser extension designed to make your GitHub navigation smoother and more visual. It bridges the gaps in the standard interface by adding clear visibility indicators and quick-access tools for developers, project managers, and power users.
+GitHub+ is a browser extension designed to make your GitHub navigation smoother and more informative. It bridges the gaps in the standard interface by adding clear visibility indicators, repository statistics, contributor insights, and quick-access tools for developers, project managers, and power users.
 
 ## What are the features
 
 * **Improved Visibility Badges**: Replaces standard labels with high-visibility, color-coded borders to instantly distinguish between Public, Private, and Template repositories.
 * **Enhanced Pagination**: Adds a full numerical pagination system to the repositories tab, allowing direct access to any page.
 * **VS Code Button**: Adds a dedicated button to repository pages to instantly open the repo in the Visual Studio Code web editor.
+* **Contributor Stats**: Displays contributor statistics and commit counts on repository contributor pages.
+* **Repository Info**: Shows repository size and file count statistics on repository overview pages.
+* **Email Copy**: Adds copy buttons for email addresses in GitHub settings pages.
 
 ---
 
@@ -56,13 +59,18 @@ GitHub+ is a browser extension designed to make your GitHub navigation smoother 
 
 > [!IMPORTANT]
 > **Is my data safe?**
-> 
-> Absolutely. GitHub+ does not collect any personal data. The extension operates entirely on the client-side and does not communicate with external servers.
+>
+> Absolutely. GitHub+ does not collect any personal data for our servers. User settings and GitHub tokens are stored locally in your browser. API calls to GitHub are made directly from your browser using your provided token.
 
 > [!NOTE]
 > **Store Availability**
-> 
+>
 > Official publication on the Chrome Web Store and Firefox Add-ons is planned for the near future to enable automatic updates.
+
+> [!TIP]
+> **Do I need a GitHub token?**
+>
+> A GitHub personal access token is required only for advanced features like Contributor Stats and Repository Info. It's stored locally and used to access GitHub's API within your browser.
 
 ---
 

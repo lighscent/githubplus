@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub+ Settings</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="popup-container">
+        <div class="popup-header">
+            <div class="header-left">
+                <a href="https://github.com" target="_blank" class="github-link" title="Visit GitHub" rel="noopener noreferrer">
+                    <h1>GitHub+</h1>
+                </a>
+                <span class="version" id="version"></span>
+            </div>
+            <div class="header-right">
+                <button id="settings-toggle" class="settings-btn" title="API Settings">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <div class="popup-content">
+            <div id="features-section" class="content-section">
+                <div class="features-card">
+                    <div class="features-intro">
+                        <p class="settings-title">Customize GitHub+</p>
+                        <p class="settings-description">Choose the GitHub+ enhancements you want to keep visible.</p>
+                    </div>
+
+                    <div class="toggle-group">
+                    <label class="toggle-item">
+                        <input type="checkbox" id="toggle-badges" class="toggle-checkbox">
+                        <span class="toggle-copy">
+                            <span class="toggle-label">Visibility Badges</span>
+                            <span class="toggle-description">Show visibility indicators on repositories.</span>
+                        </span>
+                    </label>
+
+                    <label class="toggle-item">
+                        <input type="checkbox" id="toggle-vscode" class="toggle-checkbox">
+                        <span class="toggle-copy">
+                            <span class="toggle-label">VS Code Button</span>
+                            <span class="toggle-description">Open repositories in VS Code faster.</span>
+                        </span>
+                    </label>
+
+                    <label class="toggle-item">
+                        <input type="checkbox" id="toggle-contributors" class="toggle-checkbox">
+                        <span class="toggle-copy">
+                            <span class="toggle-label">Contributor Stats</span>
+                            <span class="toggle-description">Show contributor insights on repo pages.</span>
+                        </span>
+                    </label>
+
+                    <label class="toggle-item">
+                        <input type="checkbox" id="toggle-repo-info" class="toggle-checkbox">
+                        <span class="toggle-copy">
+                            <span class="toggle-label">Repository Info</span>
+                            <span class="toggle-description">Add extra repository metadata.</span>
+                        </span>
+                    </label>
+
+                    <label class="toggle-item">
+                        <input type="checkbox" id="toggle-private-email" class="toggle-checkbox">
+                        <span class="toggle-copy">
+                            <span class="toggle-label">Email Copy</span>
+                            <span class="toggle-description">Copy private email values more easily.</span>
+                        </span>
+                    </label>
+
+                    <label class="toggle-item">
+                        <input type="checkbox" id="toggle-pagination" class="toggle-checkbox">
+                        <span class="toggle-copy">
+                            <span class="toggle-label">Enhanced Pagination</span>
+                            <span class="toggle-description">Improve navigation in long result lists.</span>
+                        </span>
+                    </label>
+                </div>
+                </div>
+            </div>
+
+            <div id="api-settings-section" class="content-section hidden">
+                <h2>API Settings</h2>
+                <div class="settings-card">
+                    <div class="settings-intro">
+                        <p class="settings-title">Connect GitHub API</p>
+                        <p class="settings-description">Add a fine-grained token to unlock features that need authenticated GitHub requests.</p>
+                    </div>
+
+                    <div class="token-group">
+                        <label for="github-token">GitHub Token</label>
+                        <input type="password" id="github-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+                        <p class="token-instructions">To create a fine-grained GitHub token, visit <a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener noreferrer">GitHub Settings > Personal access tokens > Fine-grained tokens</a>. Select "All repositories", and grant read-only access to "Metadata" and "Contents" permissions.</p>
+                    </div>
+
+                    <div class="settings-actions">
+                        <span id="save-status" class="save-status" aria-live="polite"></span>
+                        <button id="save-settings" class="primary-btn" type="button">Save</button>
+                    </div>
+
+                    <div class="refresh-card">
+                        <div class="refresh-copy">
+                            <p class="refresh-title">Force Refresh Data</p>
+                            <p class="refresh-description">Ignore the current 2:00 AM cache window and refresh repository data again the next time you open a repo page.</p>
+                        </div>
+                        <div class="settings-actions">
+                            <span id="refresh-status" class="save-status" aria-live="polite"></span>
+                            <button id="force-refresh" class="secondary-btn" type="button">Force Refresh</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>

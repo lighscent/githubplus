@@ -28,7 +28,7 @@
         "https://api.github.com/*"
     ],
     "action": {
-        "default_popup": "popup.html",
+        "default_popup": "popup/popup.html",
         "default_icon": {
             "16": "assets/githubplus.png",
             "48": "assets/githubplus.png",

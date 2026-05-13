@@ -3,21 +3,40 @@
     let repoInfoCache = null;
     let repoInfoFetchPromise = null;
     let cachedRepoKey = null;
-    let cachedDate = null;
+    let cachedExpiresAt = null;
+    let githubToken = '';
+    let refreshTimerId = null;
     const CACHE_NAMESPACE = 'repo-info-cache';
+    const FORCE_REFRESH_KEY = 'force-refresh-generation';
+    let forceRefreshGeneration = 0;
 
     // Listen for settings changes
-    chrome.storage.sync.get('repo-info-enabled', (items) => {
+    chrome.storage.sync.get(['repo-info-enabled', 'github-token'], (items) => {
         isEnabled = items['repo-info-enabled'] !== false;
-        manageRepoInfo();
+        githubToken = items['github-token'] || '';
+        chrome.storage.local.get([FORCE_REFRESH_KEY], (localItems) => {
+            forceRefreshGeneration = localItems[FORCE_REFRESH_KEY] || 0;
+            manageRepoInfo();
+        });
     });
 
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        if (request.type === 'SETTINGS_CHANGED' && request.setting === 'repo-info-enabled') {
-            isEnabled = request.value;
-            manageRepoInfo();
+        if (request.type === 'SETTINGS_CHANGED') {
+            if (request.setting === 'repo-info-enabled') {
+                isEnabled = request.value;
+                manageRepoInfo();
+            } else if (request.setting === 'github-token') {
+                githubToken = request.value;
+                manageRepoInfo();
+            } else if (request.setting === FORCE_REFRESH_KEY) {
+                forceRefreshGeneration = request.value || 0;
+                repoInfoCache = null;
+                cachedExpiresAt = null;
+                manageRepoInfo();
+            }
         } else if (request.type === 'SETTINGS_RESET') {
             isEnabled = true;
+            githubToken = '';
             manageRepoInfo();
         }
     });
@@ -30,8 +49,50 @@
         displayRepoInfo();
     }
 
-    function getTodayKey() {
-        return new Date().toISOString().slice(0, 10);
+    function getNextRefreshDate() {
+        const now = new Date();
+        const nextRefresh = new Date(now);
+        nextRefresh.setHours(2, 0, 0, 0);
+
+        if (now >= nextRefresh) {
+            nextRefresh.setDate(nextRefresh.getDate() + 1);
+        }
+
+        return nextRefresh;
+    }
+
+    function getNextRefreshTimestamp() {
+        return getNextRefreshDate().getTime();
+    }
+
+    function isCacheValid(expiresAt) {
+        return Number.isFinite(expiresAt) && Date.now() < expiresAt;
+    }
+
+    function isForcedRefreshPending(cacheGeneration) {
+        return forceRefreshGeneration > 0 && (cacheGeneration || 0) < forceRefreshGeneration;
+    }
+
+    function formatRemainingTime() {
+        const now = new Date();
+        const nextRefresh = getNextRefreshDate();
+        const diffMs = Math.max(0, nextRefresh.getTime() - now.getTime());
+        const totalMinutes = Math.floor(diffMs / 60000);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+
+        if (hours === 0) {
+            return `${minutes}m until refresh`;
+        }
+
+        return `${hours}h ${minutes}m until refresh`;
+    }
+
+    function updateRefreshCountdown() {
+        const countdown = document.getElementById('ghp-repo-refresh-countdown');
+        if (!countdown) return;
+
+        countdown.textContent = formatRemainingTime();
     }
 
     function getCacheKey(repoKey) {
@@ -86,6 +147,21 @@
                 font-weight: 600;
                 font-size: 14px;
             }
+
+            .ghp-repo-stats-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+            }
+
+            .ghp-repo-refresh-countdown {
+                flex: 0 0 auto;
+                font-size: 12px;
+                font-weight: 400;
+                color: #8b949e;
+                white-space: nowrap;
+            }
         `;
         document.head.appendChild(style);
     }
@@ -126,7 +202,10 @@
 
         statsSection.innerHTML = `
             <div class="BorderGrid-cell">
-                <h2 class="h4 tmp-mb-3">Repository Statistics</h2>
+                <h2 class="h4 tmp-mb-3 ghp-repo-stats-header">
+                    <span>Repository Statistics</span>
+                    <span id="ghp-repo-refresh-countdown" class="ghp-repo-refresh-countdown"></span>
+                </h2>
                 <div class="ghp-repo-stats">
                     <div class="ghp-repo-stats-item">
                         <span class="ghp-repo-stats-label">Repository Size</span>
@@ -141,13 +220,18 @@
         `;
 
         statsSection.style.display = '';
+        updateRefreshCountdown();
+
+        if (!refreshTimerId) {
+            refreshTimerId = window.setInterval(updateRefreshCountdown, 60000);
+        }
     }
 
     async function loadRepoInfo(owner, repo) {
         const repoKey = `${owner}/${repo}`;
-        const todayKey = getTodayKey();
+        const nextRefreshAt = getNextRefreshTimestamp();
 
-        if (repoInfoCache && cachedRepoKey === repoKey && cachedDate === todayKey) {
+        if (repoInfoCache && cachedRepoKey === repoKey && isCacheValid(cachedExpiresAt)) {
             return repoInfoCache;
         }
 
@@ -159,13 +243,25 @@
         repoInfoFetchPromise = (async () => {
             try {
                 const storedCache = await readStoredCache(repoKey);
-                if (storedCache && storedCache.date === todayKey && storedCache.data) {
+                if (
+                    storedCache &&
+                    isCacheValid(storedCache.expiresAt) &&
+                    storedCache.data &&
+                    !isForcedRefreshPending(storedCache.generation)
+                ) {
                     repoInfoCache = storedCache.data;
-                    cachedDate = todayKey;
+                    cachedExpiresAt = storedCache.expiresAt;
                     return repoInfoCache;
                 }
 
-                const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
+                // If no token is set, we can still display a valid stored cache but cannot refresh it.
+                if (!githubToken) return null;
+
+                const headers = {};
+                if (githubToken) {
+                    headers['Authorization'] = `token ${githubToken}`;
+                }
+                const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
                 if (!response.ok) return null;
 
                 const data = await response.json();
@@ -176,7 +272,7 @@
 
                 let fileCount = '—';
                 try {
-                    const branchResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${data.default_branch}?recursive=1`);
+                    const branchResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${data.default_branch}?recursive=1`, { headers });
                     if (branchResponse.ok) {
                         const treeData = await branchResponse.json();
                         if (treeData.tree) {
@@ -188,10 +284,11 @@
                 }
 
                 repoInfoCache = { sizeDisplay, fileCount };
-                cachedDate = todayKey;
+                cachedExpiresAt = nextRefreshAt;
 
                 await writeStoredCache(repoKey, {
-                    date: todayKey,
+                    expiresAt: nextRefreshAt,
+                    generation: forceRefreshGeneration,
                     data: repoInfoCache
                 });
 

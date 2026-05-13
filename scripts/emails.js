@@ -4,7 +4,7 @@
 
     chrome.storage.sync.get('emails-enabled', (items) => {
         isEnabled = items['emails-enabled'] !== false;
-        managePrivateEmail();
+        syncPrivateEmailState();
     });
 
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

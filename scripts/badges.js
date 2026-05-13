@@ -5,6 +5,7 @@
         'Public': { border: '2px solid #2da44e', color: '#2da44e' },
         'Private': { border: '2px solid #cf222e', color: '#cf222e' },
         'Public template': { border: '2px solid #0969da', color: '#0969da' },
+        'Private template': { border: '2px solid #bf3989', color: '#bf3989' },
         'Private archive': { border: '2px solid #8250df', color: '#8250df' },
         'Public archive': { border: '2px solid #d29922', color: '#d29922' }
     };
