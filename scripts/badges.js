@@ -3,10 +3,9 @@
         'Public': { border: '2px solid #2da44e', color: '#2da44e' },
         'Private': { border: '2px solid #cf222e', color: '#cf222e' },
         'Public template': { border: '2px solid #0969da', color: '#0969da' },
-        'Private archive': { border: '2px solid #c46022', color: '#c46022' },
-        'Public archive': { border: '2px solid #9e6a03', color: '#9e6a03' }
+        'Private archive': { border: '2px solid #8250df', color: '#8250df' },
+        'Public archive': { border: '2px solid #d29922', color: '#d29922' }
     };
-
     function applyStyles() {
         const badges = document.querySelectorAll('span.Label:not([data-ghp-styled]), span[class*="prc-Label-Label"]:not([data-ghp-styled])');
 
