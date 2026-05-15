@@ -37,7 +37,7 @@
             managePagination();
         } else if (request.type === 'SETTINGS_CHANGED' && request.setting === FORCE_REFRESH_KEY) {
             forceRefreshGeneration = request.value || 0;
-            clearCommitPaginationMemory();
+            clearAllCommitPaginationCache();
             managePagination();
         } else if (request.type === 'SETTINGS_RESET') {
             isEnabled = true;
@@ -55,10 +55,17 @@
         const customCommitsPagination = document.querySelectorAll('.custom-commits-pagination');
         customCommitsPagination.forEach(el => el.remove());
         
-        const defaultPagination = document.querySelector('.paginate-container');
-        if (defaultPagination) {
-            defaultPagination.style.display = '';
+        // Restore default repo pagination
+        const defaultRepoPagination = document.querySelector('.paginate-container');
+        if (defaultRepoPagination) {
+            defaultRepoPagination.style.display = '';
         }
+        
+        // Restore default commits pagination (search for nav with aria-label)
+        const defaultCommitsPaginationContainers = document.querySelectorAll('nav[aria-label="Pagination"]');
+        defaultCommitsPaginationContainers.forEach(pagination => {
+            pagination.style.display = '';
+        });
     }
 
     function clearCommitPaginationMemory() {
@@ -89,7 +96,9 @@
 
     function getNextRefreshDate() {
         const now = new Date();
-        const nextRefresh = new Date(now.getTime() + 60 * 60 * 1000); // Expire in 1 hour
+        const nextRefresh = new Date(now);
+        nextRefresh.setHours(2, 0, 0, 0);
+        if (now >= nextRefresh) nextRefresh.setDate(nextRefresh.getDate() + 1);
         return nextRefresh;
     }
 
@@ -418,7 +427,7 @@
 
             commitsCursorCache.set(repoKey, snapshot);
             cachedCommitExpiresAt = getNextRefreshTimestamp();
-            console.log(`[Pagination Cache] Updating cache - Expires at: ${formatCacheDate(cachedCommitExpiresAt)} (in 1 hour)`);
+            console.log(`[Pagination Cache] Updating cache - Expires at: ${formatCacheDate(cachedCommitExpiresAt)} (at 2:00 AM)`);
 
             await writeStoredCommitCache(repoKey, {
                 expiresAt: cachedCommitExpiresAt,
