@@ -81,13 +81,17 @@ function requestForceRefresh() {
     const refreshStatus = document.getElementById('refresh-status');
     const nextGeneration = Date.now();
 
-    chrome.storage.local.set({ [FORCE_REFRESH_KEY]: nextGeneration }, () => {
-        if (refreshStatus) {
-            refreshStatus.textContent = 'Refresh queued';
-            refreshStatus.className = 'save-status success';
-        }
+    // Clear all caches from localStorage
+    chrome.storage.local.clear(() => {
+        // Set the force refresh generation key
+        chrome.storage.local.set({ [FORCE_REFRESH_KEY]: nextGeneration }, () => {
+            if (refreshStatus) {
+                refreshStatus.textContent = 'All caches cleared - Refresh queued';
+                refreshStatus.className = 'save-status success';
+            }
 
-        broadcastSettingChange(FORCE_REFRESH_KEY, nextGeneration);
+            broadcastSettingChange(FORCE_REFRESH_KEY, nextGeneration);
+        });
     });
 }
 
