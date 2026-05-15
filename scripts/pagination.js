@@ -281,11 +281,17 @@
     function getCommitPageInfo() {
         const pathParts = window.location.pathname.split('/').filter(p => p);
         if (pathParts.length < 4) return null;
+
+        const commitsIndex = pathParts.indexOf('commits');
+        if (commitsIndex === -1 || commitsIndex < 2) return null;
+
+        const branchParts = pathParts.slice(commitsIndex + 1);
+        if (!branchParts.length) return null;
         
         return {
             owner: pathParts[0],
             repo: pathParts[1],
-            branch: pathParts[3]
+            branch: branchParts.join('/')
         };
     }
 
@@ -373,7 +379,7 @@
 
             const fetchStartTime = performance.now();
             const response = await fetch(
-                `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}&per_page=1`,
+                `https://api.github.com/repos/${owner}/${repo}/commits?sha=${encodeURIComponent(branch)}&per_page=1`,
                 { headers }
             );
             const fetchEndTime = performance.now();
@@ -463,10 +469,12 @@
             return hrefMap;
         }
 
+        // Limit prefetching to avoid excessive requests on large repositories
+        const maxPrefetch = 10;
         let nextHref = startHref || getPaginationNextHref(document);
         let currentPage = 1;
 
-        while (nextHref && currentPage < maxPage) {
+        while (nextHref && currentPage < maxPrefetch) {
             currentPage += 1;
             if (!hrefMap.has(currentPage)) {
                 hrefMap.set(currentPage, nextHref);
@@ -580,11 +588,27 @@
         };
 
         // Add Previous button
-        const prevBtn = existingPagination.querySelector('[data-component="Pagination.PreviousPage"]');
-        if (prevBtn) {
-            const href = isFirstPage ? null : (prevBtn.getAttribute('href') || prevBtn.href);
-            container.appendChild(createBtn('Previous', 0, false, isFirstPage, href ? new URL(href, window.location.origin).href : null));
+        let prevHref = null;
+        if (!isFirstPage && currentPage > 1) {
+            if (currentPage === 2) {
+                // Go back to page 1 (no cursor)
+                prevHref = window.location.pathname;
+            } else {
+                // Calculate the cursor for the previous page
+                const currentOffset = getCommitAfterOffset() || 0;
+                const newOffset = Math.max(0, currentOffset - itemsPerPage);
+                if (newOffset > 0) {
+                    // Extract the commit SHA from current after parameter
+                    const rawMatch = window.location.search.match(/[?&]after=([^&+]+)/);
+                    const commitSha = rawMatch ? rawMatch[1] : '';
+                    prevHref = `${window.location.pathname}?after=${commitSha}+${newOffset}`;
+                } else {
+                    // First page has no cursor
+                    prevHref = window.location.pathname;
+                }
+            }
         }
+        container.appendChild(createBtn('Previous', 0, false, isFirstPage, prevHref));
 
         // Add page number buttons
         let lastPage = 0;
