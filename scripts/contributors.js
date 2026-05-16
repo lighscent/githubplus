@@ -298,13 +298,20 @@
         if (!isEnabled) return;
 
         injectStyles();
-        ensureRefreshCountdown();
 
         const contributorItems = document.querySelectorAll('li.mb-2.d-flex');
-        if (!contributorItems.length) return;
+        if (!contributorItems.length) {
+            removeAllStats();
+            return;
+        }
 
         const data = await fetchContributors();
-        if (!data) return;
+        if (!data || !data.map || !Object.keys(data.map).length || !data.total) {
+            removeAllStats();
+            return;
+        }
+
+        ensureRefreshCountdown();
 
         const { map: contributorMap, total: totalCommits } = data;
 
@@ -352,6 +359,11 @@
         document.querySelectorAll('.ghp-contrib-stats').forEach(el => el.remove());
         const countdown = document.getElementById('ghp-refresh-countdown');
         if (countdown) countdown.remove();
+
+        if (refreshTimerId) {
+            clearInterval(refreshTimerId);
+            refreshTimerId = null;
+        }
     }
 
     // Watch for DOM changes and re-run enhancement

@@ -144,6 +144,15 @@
         return `${url.pathname}${url.search}`;
     }
 
+    function extractCommitCursorSha(href) {
+        if (!href) return null;
+
+        const match = href.match(/[?&]after=([^&]+)/);
+        if (!match) return null;
+
+        return match[1].split(/(?:\+|%2B)/i)[0] || null;
+    }
+
     function getCommitAfterOffset() {
         const rawMatch = window.location.search.match(/[?&]after=([^&]+)/);
         if (!rawMatch) return null;
@@ -301,6 +310,35 @@
         return commitRows.length || DEFAULT_COMMITS_PER_PAGE;
     }
 
+    async function resolveCommitPageHref(targetPage, itemsPerPage = getActualCommitsPerPage(), pageHrefs = null) {
+        if (targetPage <= 1) return window.location.pathname;
+
+        const pageInfo = getCommitPageInfo();
+        if (!pageInfo) return null;
+
+        const exactHref = pageHrefs?.[targetPage];
+        if (exactHref) {
+            return normalizeUrl(exactHref);
+        }
+
+        const targetOffset = Math.max(0, (targetPage - 2) * itemsPerPage);
+        const anchorHref = pageHrefs?.[2] || getPaginationNextHref(document);
+        const commitSha = extractCommitCursorSha(anchorHref);
+
+        if (!commitSha) return null;
+
+        if (targetPage === 2) {
+            return `${window.location.pathname}?after=${commitSha}+0`;
+        }
+
+        try {
+            return `${window.location.pathname}?after=${commitSha}+${targetOffset}`;
+        } catch (error) {
+            console.warn('Error resolving commit pagination href:', error);
+            return null;
+        }
+    }
+
     function getPageStatus() {
         const nav = document.querySelector('nav[aria-label="Pagination"]');
         if (!nav) return { isFirstPage: true, hasNextPage: false };
@@ -393,23 +431,25 @@
 
             const linkHeader = response.headers.get('Link');
             const itemsPerPage = getActualCommitsPerPage();
+            let totalPages = 0;
             let totalCommits = 0;
 
             if (linkHeader) {
                 const lastMatch = linkHeader.match(/<[^>]*[?&]page=(\d+)[^>]*>;\s*rel="last"/i);
                 if (lastMatch) {
                     totalCommits = parseInt(lastMatch[1], 10);
+                    totalPages = Math.ceil(totalCommits / itemsPerPage) + 1;
                 }
             }
 
-            if (!totalCommits) {
+            if (!totalPages) {
                 const commits = await response.json();
                 if (Array.isArray(commits)) {
                     totalCommits = commits.length;
+                    totalPages = commits.length > 0 ? 1 : 0;
                 }
             }
 
-            const totalPages = totalCommits > 0 ? Math.ceil(totalCommits / itemsPerPage) : 0;
             console.log(`[Pagination API] Result: ${totalCommits} commits, ${totalPages} pages (${itemsPerPage} per page)`);
             
             // Check if cache changed
@@ -530,7 +570,7 @@
         if (document.querySelector('.custom-commits-pagination')) return;
 
         const itemsPerPage = snapshot.itemsPerPage || getActualCommitsPerPage();
-        const totalPages = snapshot.totalPages || Math.ceil(snapshot.totalCommits / itemsPerPage);
+        const totalPages = Math.max(snapshot.totalPages || 0, getCurrentCommitPage(itemsPerPage));
         const currentPage = getCurrentCommitPage(itemsPerPage);
         const pages = buildVisiblePages(totalPages, currentPage);
         const hrefMap = new Map(Object.entries(snapshot.pageHrefs || {}).map(([pageNum, href]) => [parseInt(pageNum, 10), href]));
@@ -580,10 +620,22 @@
                 return;
             }
 
+            const resolvedHref = await resolveCommitPageHref(pageNum, itemsPerPage, snapshot?.pageHrefs || null);
+            if (resolvedHref) {
+                window.location.href = resolvedHref;
+                return;
+            }
+
             const refreshedSnapshot = await refreshCommitPaginationSnapshot(pageInfo.owner, pageInfo.repo, pageInfo.branch, cachedCommitRepoKey, snapshot);
             const refreshedHref = refreshedSnapshot?.pageHrefs ? refreshedSnapshot.pageHrefs[pageNum] : null;
             if (refreshedHref) {
                 window.location.href = refreshedHref;
+                return;
+            }
+
+            const fallbackHref = await resolveCommitPageHref(pageNum, refreshedSnapshot?.itemsPerPage || itemsPerPage, refreshedSnapshot?.pageHrefs || null);
+            if (fallbackHref) {
+                window.location.href = fallbackHref;
             }
         };
 
