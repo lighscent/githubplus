@@ -359,6 +359,11 @@
         document.querySelectorAll('.ghp-contrib-stats').forEach(el => el.remove());
         const countdown = document.getElementById('ghp-refresh-countdown');
         if (countdown) countdown.remove();
+
+        if (refreshTimerId) {
+            clearInterval(refreshTimerId);
+            refreshTimerId = null;
+        }
     }
 
     // Watch for DOM changes and re-run enhancement
