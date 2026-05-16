@@ -19,7 +19,7 @@ GitHub+ is a browser extension designed to make your GitHub navigation smoother 
 ## What are the features
 
 * **Improved Visibility Badges**: Replaces standard labels with high-visibility, color-coded borders to instantly distinguish between Public, Private, and Template repositories.
-* **Enhanced Pagination**: Adds a full numerical pagination system to the repositories tab, allowing direct access to any page.
+* **Enhanced Pagination**: Adds a full numerical pagination system to the repositories tab and commits section, allowing direct access to any page.
 * **VS Code Button**: Adds a dedicated button to repository pages to instantly open the repo in the Visual Studio Code web editor.
 * **Contributor Stats**: Displays contributor statistics and commit counts on repository contributor pages.
 * **Repository Info**: Shows repository size and file count statistics on repository overview pages.
@@ -44,9 +44,10 @@ GitHub+ is a browser extension designed to make your GitHub navigation smoother 
 
 | Feature | Before | After |
 | :--- | :---: | :---: |
-| **Visibility Badges** | <img src="/docs/imgs/chrome_D1b5J0h1uG.png" width="350"> | <img src="/docs/imgs/chrome_YMzHmccx7l.png" width="350"> |
-| **Pagination** | <img src="/docs/imgs/chrome_bogbNVEPxJ.png" width="350"> | <img src="/docs/imgs/chrome_NxNI4pnTLu.png" width="350"> |
-| **VS Code Button** | <img src="/docs/imgs/chrome_g4z1Jg4qqH.png" width="350"> | <img src="/docs/imgs/chrome_CHmE21XY9y.png" width="350"> |
+| **Visibility Badges** | ![](/docs/imgs/badges_before.png) | ![](/docs/imgs/badges_after.png) |
+| **Pagination** | ![](/docs/imgs/pagination_before.png) | ![](/docs/imgs/pagination_after.png) |
+| **VS Code Button** | ![](/docs/imgs/vscode-button_before.png) | ![](/docs/imgs/vscode-button_after.png) |
+| **Contributor Stats** | ![](/docs/imgs/contributors_before.png) | ![](/docs/imgs/contributors_after.png) |
 
 ---
 
