@@ -144,6 +144,15 @@
         return `${url.pathname}${url.search}`;
     }
 
+    function extractCommitCursorSha(href) {
+        if (!href) return null;
+
+        const match = href.match(/[?&]after=([^&]+)/);
+        if (!match) return null;
+
+        return match[1].split(/(?:\+|%2B)/i)[0] || null;
+    }
+
     function getCommitAfterOffset() {
         const rawMatch = window.location.search.match(/[?&]after=([^&]+)/);
         if (!rawMatch) return null;
@@ -295,14 +304,62 @@
         };
     }
 
+    function shouldRenderRefreshedCommitPagination(pageInfo, previousSnapshot, nextSnapshot) {
+        if (!pageInfo || !previousSnapshot || !nextSnapshot) return false;
+
+        const currentPageInfo = getCommitPageInfo();
+        if (!currentPageInfo ||
+            currentPageInfo.owner !== pageInfo.owner ||
+            currentPageInfo.repo !== pageInfo.repo ||
+            currentPageInfo.branch !== pageInfo.branch) {
+            return false;
+        }
+
+        return previousSnapshot.totalCommits !== nextSnapshot.totalCommits ||
+            previousSnapshot.totalPages !== nextSnapshot.totalPages ||
+            previousSnapshot.itemsPerPage !== nextSnapshot.itemsPerPage ||
+            JSON.stringify(previousSnapshot.pageHrefs || {}) !== JSON.stringify(nextSnapshot.pageHrefs || {});
+    }
+
     function getActualCommitsPerPage() {
         // Count the actual number of visible commits on the current page
         const commitRows = document.querySelectorAll('[data-testid="commit"], [data-testid="commit-row"]');
         return commitRows.length || DEFAULT_COMMITS_PER_PAGE;
     }
 
-    function getPageStatus() {
-        const nav = document.querySelector('nav[aria-label="Pagination"]');
+    async function resolveCommitPageHref(targetPage, itemsPerPage = getActualCommitsPerPage(), pageHrefs = null) {
+        if (targetPage <= 1) return window.location.pathname;
+
+        const pageInfo = getCommitPageInfo();
+        if (!pageInfo) return null;
+
+        const exactHref = pageHrefs?.[targetPage];
+        if (exactHref) {
+            return normalizeUrl(exactHref);
+        }
+
+        const targetOffset = Math.max(0, (targetPage - 2) * itemsPerPage);
+        const anchorHref = pageHrefs?.[2] || getPaginationNextHref(document);
+        const commitSha = extractCommitCursorSha(anchorHref);
+
+        if (!commitSha) return null;
+
+        if (targetPage === 2) {
+            return `${window.location.pathname}?after=${commitSha}+0`;
+        }
+
+        try {
+            return `${window.location.pathname}?after=${commitSha}+${targetOffset}`;
+        } catch (error) {
+            console.warn('Error resolving commit pagination href:', error);
+            return null;
+        }
+    }
+
+    function getPageStatus(root = document) {
+        const nav = root?.matches?.('nav[aria-label="Pagination"]')
+            ? root
+            : root.querySelector('nav[aria-label="Pagination"]');
         if (!nav) return { isFirstPage: true, hasNextPage: false };
 
         const prevBtn = nav.querySelector('[data-component="Pagination.PreviousPage"]');
@@ -314,116 +371,284 @@
         return { isFirstPage, hasNextPage };
     }
 
-    async function fetchCommitPaginationSnapshot(owner, repo, branch) {
+    function hideDefaultCommitPagination() {
+        const existingPagination = getPaginationNav();
+        if (existingPagination) {
+            existingPagination.style.display = 'none';
+        }
+        return existingPagination;
+    }
+
+    function buildCommitPaginationContainer(snapshot, pageInfo, existingPagination) {
+        const itemsPerPage = snapshot.itemsPerPage || getActualCommitsPerPage();
+        const totalPages = Math.max(snapshot.totalPages || 0, getCurrentCommitPage(itemsPerPage));
+        const currentPage = getCurrentCommitPage(itemsPerPage);
+        const pages = buildVisiblePages(totalPages, currentPage);
+        const hrefMap = new Map(Object.entries(snapshot.pageHrefs || {}).map(([pageNum, href]) => [parseInt(pageNum, 10), href]));
+        hrefMap.set(1, window.location.pathname);
+        const maxPreloadPage = Math.min(totalPages, currentPage + 4);
+        const { isFirstPage, hasNextPage } = getPageStatus(existingPagination || document);
+
+        const container = document.createElement('div');
+        container.className = 'custom-commits-pagination d-flex flex-justify-center my-4 py-3';
+        container.style.cssText = `
+            gap: 8px;
+            border-top: 1px solid var(--color-border-muted);
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            min-height: 44px;
+        `;
+
+        const createBtn = (text, pageNum, isActive = false, isDisabled = false, href = null) => {
+            const btn = document.createElement(isDisabled ? 'span' : 'a');
+            btn.textContent = text;
+            btn.className = `btn btn-sm d-flex flex-items-center flex-justify-center ${isActive ? 'btn-primary' : ''} ${isDisabled ? 'disabled' : ''}`;
+            btn.style.cssText = `
+                min-width: 32px;
+                height: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            `;
+            if (!isDisabled && href) {
+                btn.href = href;
+            }
+            return btn;
+        };
+
+        const navigateToCommitPage = async (pageNum) => {
+            if (pageNum <= 1) {
+                window.location.href = window.location.pathname;
+                return;
+            }
+
+            const cachedHref = hrefMap.get(pageNum);
+            if (cachedHref) {
+                window.location.href = cachedHref;
+                return;
+            }
+
+            const resolvedHref = await resolveCommitPageHref(pageNum, itemsPerPage, snapshot?.pageHrefs || null);
+            if (resolvedHref) {
+                window.location.href = resolvedHref;
+                return;
+            }
+
+            const refreshedSnapshot = await refreshCommitPaginationSnapshot(pageInfo.owner, pageInfo.repo, pageInfo.branch, cachedCommitRepoKey, snapshot);
+            const refreshedHref = refreshedSnapshot?.pageHrefs ? refreshedSnapshot.pageHrefs[pageNum] : null;
+            if (refreshedHref) {
+                window.location.href = refreshedHref;
+                return;
+            }
+
+            const fallbackHref = await resolveCommitPageHref(pageNum, refreshedSnapshot?.itemsPerPage || itemsPerPage, refreshedSnapshot?.pageHrefs || null);
+            if (fallbackHref) {
+                window.location.href = fallbackHref;
+            }
+        };
+
+        let prevHref = null;
+        if (!isFirstPage && currentPage > 1) {
+            if (currentPage === 2) {
+                prevHref = window.location.pathname;
+            } else {
+                const currentOffset = getCommitAfterOffset() || 0;
+                const newOffset = Math.max(0, currentOffset - itemsPerPage);
+                if (newOffset > 0) {
+                    const rawMatch = window.location.search.match(/[?&]after=([^&+]+)/);
+                    const commitSha = rawMatch ? rawMatch[1] : '';
+                    prevHref = `${window.location.pathname}?after=${commitSha}+${newOffset}`;
+                } else {
+                    prevHref = window.location.pathname;
+                }
+            }
+        }
+        container.appendChild(createBtn('Previous', 0, false, isFirstPage, prevHref));
+
+        let lastPage = 0;
+        for (const pageNum of pages) {
+            if (lastPage !== 0 && pageNum - lastPage > 1) {
+                const ellipsis = document.createElement('span');
+                ellipsis.textContent = '...';
+                ellipsis.className = 'd-flex flex-items-center px-2';
+                ellipsis.style.flexShrink = '0';
+                container.appendChild(ellipsis);
+            }
+
+            let pageHref = hrefMap.get(pageNum) || null;
+            if (pageNum === 1) {
+                pageHref = `${window.location.pathname}`;
+            }
+
+            const btn = createBtn(pageNum, pageNum, pageNum === currentPage, false, pageHref);
+
+            if (!pageHref || pageNum > maxPreloadPage || pageNum === totalPages) {
+                btn.removeAttribute('href');
+                btn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    btn.style.pointerEvents = 'none';
+                    await navigateToCommitPage(pageNum);
+                });
+            }
+
+            container.appendChild(btn);
+            lastPage = pageNum;
+        }
+
+        const nextBtn = existingPagination.querySelector('[data-component="Pagination.NextPage"]');
+        if (nextBtn) {
+            const href = hasNextPage ? (nextBtn.getAttribute('href') || nextBtn.href) : null;
+            container.appendChild(createBtn('Next', 0, false, !hasNextPage, href ? new URL(href, window.location.origin).href : null));
+        }
+
+        return container;
+    }
+
+    function renderCommitPagination(snapshot, pageInfo, existingPagination = null) {
+        if (!snapshot || !snapshot.totalCommits || !pageInfo) return false;
+
+        const currentPagination = existingPagination || getPaginationNav();
+        if (!currentPagination) return false;
+
+        const container = buildCommitPaginationContainer(snapshot, pageInfo, currentPagination);
+        const currentCustomPagination = document.querySelector('.custom-commits-pagination');
+
+        if (currentCustomPagination && currentCustomPagination.parentElement) {
+            currentCustomPagination.replaceWith(container);
+        } else if (currentPagination.parentElement) {
+            currentPagination.parentElement.insertBefore(container, currentPagination);
+        } else {
+            return false;
+        }
+
+        hideDefaultCommitPagination();
+        clearExtraCommitPagination();
+        return true;
+    }
+
+    function scheduleCommitPaginationRefresh(owner, repo, branch, repoKey, previousSnapshot, refreshContext = {}) {
+        const refreshPromise = refreshCommitPaginationSnapshot(owner, repo, branch, repoKey, previousSnapshot)
+            .then((refreshedSnapshot) => {
+                if (shouldRenderRefreshedCommitPagination(refreshContext.pageInfo, previousSnapshot, refreshedSnapshot)) {
+                    renderCommitPagination(refreshedSnapshot, refreshContext.pageInfo, refreshContext.existingPagination);
+                }
+
+                return refreshedSnapshot;
+            })
+            .catch((error) => {
+                console.warn('Error refreshing commit pagination snapshot in background:', error);
+                return previousSnapshot;
+            })
+            .finally(() => {
+                if (commitsCachePromise === refreshPromise) {
+                    commitsCachePromise = null;
+                }
+            });
+
+        commitsCachePromise = refreshPromise;
+        return refreshPromise;
+    }
+
+    async function fetchCommitPaginationSnapshot(owner, repo, branch, refreshContext = {}) {
         if (!githubToken) return null;
 
         const repoKey = `${owner}/${repo}/${branch}`;
-        console.log(`[Pagination Cache] Loading cache for: ${repoKey}`);
         
         if (commitsCachePromise && cachedCommitRepoKey === repoKey) {
-            console.log(`[Pagination Cache] Using snapshot in progress...`);
             return commitsCachePromise;
         }
 
         if (cachedCommitRepoKey === repoKey && commitsCursorCache.has(repoKey) && isCacheValid(cachedCommitExpiresAt)) {
-            console.log(`[Pagination Cache] Valid memory cache found`);
             return commitsCursorCache.get(repoKey);
         }
 
         cachedCommitRepoKey = repoKey;
-        commitsCachePromise = (async () => {
-            try {
-                const storedCache = await readStoredCommitCache(repoKey);
-                if (storedCache) {
-                    const cacheCreatedTime = storedCache.expiresAt - 60*60*1000;
-                    console.log(`[Pagination Cache] Cache found - Created: ${formatCacheDate(cacheCreatedTime)} | Expires: ${formatCacheDate(storedCache.expiresAt)}`);
-                }
-                console.log(`[Pagination Cache] Reading local storage...`);
-                if (
-                    storedCache &&
-                    isCacheValid(storedCache.expiresAt) &&
-                    storedCache.data &&
-                    !isForcedRefreshPending(storedCache.generation)
-                ) {
-                    const cachedData = storedCache.data;
-                    const cacheCreatedTime = storedCache.expiresAt - 60*60*1000;
-                    const ageMinutes = Math.round((Date.now() - cacheCreatedTime) / 60000);
-                    commitsCursorCache.set(repoKey, cachedData);
-                    cachedCommitExpiresAt = storedCache.expiresAt;
-                    console.log(`[Pagination Cache] Cache HIT (age: ${ageMinutes} min) - ${cachedData.totalCommits} commits, ${cachedData.totalPages} pages`);
-                    return cachedData;
-                }
+        try {
+            const storedCache = await readStoredCommitCache(repoKey);
 
-                console.log(`[Pagination Cache] Cache MISS or EXPIRED - API call required`);
-                return await refreshCommitPaginationSnapshot(owner, repo, branch, repoKey, null);
-            } catch (error) {
-                console.warn('Error loading commit pagination snapshot:', error);
-                return null;
-            } finally {
-                commitsCachePromise = null;
+            if (
+                storedCache &&
+                isCacheValid(storedCache.expiresAt) &&
+                storedCache.data &&
+                !isForcedRefreshPending(storedCache.generation)
+            ) {
+                const cachedData = storedCache.data;
+                commitsCursorCache.set(repoKey, cachedData);
+                cachedCommitExpiresAt = storedCache.expiresAt;
+                return cachedData;
             }
-        })();
 
-        return commitsCachePromise;
+            if (
+                storedCache &&
+                storedCache.data &&
+                !isForcedRefreshPending(storedCache.generation)
+            ) {
+                const cachedData = storedCache.data;
+                commitsCursorCache.set(repoKey, cachedData);
+                cachedCommitExpiresAt = storedCache.expiresAt;
+
+                scheduleCommitPaginationRefresh(owner, repo, branch, repoKey, cachedData, refreshContext);
+                return cachedData;
+            }
+
+            const refreshPromise = refreshCommitPaginationSnapshot(owner, repo, branch, repoKey, null)
+                .finally(() => {
+                    if (commitsCachePromise === refreshPromise) {
+                        commitsCachePromise = null;
+                    }
+                });
+
+            commitsCachePromise = refreshPromise;
+            return refreshPromise;
+        } catch (error) {
+            console.warn('Error loading commit pagination snapshot:', error);
+            return null;
+        }
     }
 
     async function refreshCommitPaginationSnapshot(owner, repo, branch, repoKey, previousSnapshot) {
         if (!githubToken) return null;
 
         try {
-            console.log(`[Pagination API] API request for: ${owner}/${repo}/${branch}`);
             const headers = {
                 'Accept': 'application/vnd.github.v3+json',
                 'Authorization': `token ${githubToken}`
             };
 
-            const fetchStartTime = performance.now();
             const response = await fetch(
                 `https://api.github.com/repos/${owner}/${repo}/commits?sha=${encodeURIComponent(branch)}&per_page=1`,
                 { headers }
             );
-            const fetchEndTime = performance.now();
 
             if (!response.ok) {
                 console.warn(`[Pagination API] Error: ${response.status} - Using previous cache`);
                 return previousSnapshot;
             }
 
-            console.log(`[Pagination API] Response received in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms (status: ${response.status})`);
-
             const linkHeader = response.headers.get('Link');
             const itemsPerPage = getActualCommitsPerPage();
+            let totalPages = 0;
             let totalCommits = 0;
 
             if (linkHeader) {
                 const lastMatch = linkHeader.match(/<[^>]*[?&]page=(\d+)[^>]*>;\s*rel="last"/i);
                 if (lastMatch) {
                     totalCommits = parseInt(lastMatch[1], 10);
+                    totalPages = Math.ceil(totalCommits / itemsPerPage) + 1;
                 }
             }
 
-            if (!totalCommits) {
+            if (!totalPages) {
                 const commits = await response.json();
                 if (Array.isArray(commits)) {
                     totalCommits = commits.length;
-                }
-            }
-
-            const totalPages = totalCommits > 0 ? Math.ceil(totalCommits / itemsPerPage) : 0;
-            console.log(`[Pagination API] Result: ${totalCommits} commits, ${totalPages} pages (${itemsPerPage} per page)`);
-            
-            // Check if cache changed
-            if (previousSnapshot) {
-                const hasPreviousChanged = previousSnapshot.totalCommits !== totalCommits || 
-                                          previousSnapshot.totalPages !== totalPages;
-                console.log(`[Pagination Comparison] Cache vs API: ${hasPreviousChanged ? 'CHANGE DETECTED' : 'identical'}`);
-                if (hasPreviousChanged) {
-                    console.log(`  - Commits: ${previousSnapshot.totalCommits} → ${totalCommits}`);
-                    console.log(`  - Pages: ${previousSnapshot.totalPages} → ${totalPages}`);
+                    totalPages = commits.length > 0 ? 1 : 0;
                 }
             }
             
-            const pageHrefs = await buildCommitPageHrefMap(totalPages, previousSnapshot?.pageHrefs || null);
+            const pageHrefs = await buildCommitPageHrefMap(totalPages, previousSnapshot?.pageHrefs || null, null, repoKey);
             const snapshot = {
                 totalCommits,
                 totalPages,
@@ -433,14 +658,12 @@
 
             commitsCursorCache.set(repoKey, snapshot);
             cachedCommitExpiresAt = getNextRefreshTimestamp();
-            console.log(`[Pagination Cache] Updating cache - Expires at: ${formatCacheDate(cachedCommitExpiresAt)} (at 2:00 AM)`);
 
             await writeStoredCommitCache(repoKey, {
                 expiresAt: cachedCommitExpiresAt,
                 generation: forceRefreshGeneration,
                 data: snapshot
             });
-            console.log(`[Pagination Cache] Snapshot written to local storage`);
 
             return snapshot;
         } catch (error) {
@@ -449,8 +672,8 @@
         }
     }
 
-    async function buildCommitPageHrefMap(maxPage, initialHrefMap = null, startHref = null) {
-        const cacheKey = getCommitPageCacheKey(cachedCommitRepoKey || 'unknown', maxPage);
+    async function buildCommitPageHrefMap(maxPage, initialHrefMap = null, startHref = null, repoKey = cachedCommitRepoKey || 'unknown') {
+        const cacheKey = getCommitPageCacheKey(repoKey, maxPage);
         if (commitsPageHrefCache.has(cacheKey)) {
             return commitsPageHrefCache.get(cacheKey);
         }
@@ -514,8 +737,6 @@
             return;
         }
 
-        if (document.querySelector('.custom-commits-pagination')) return;
-
         const pageInfo = getCommitPageInfo();
         if (!pageInfo) return;
 
@@ -523,140 +744,19 @@
         const existingPagination = getPaginationNav();
         if (!existingPagination) return;
 
-        const { isFirstPage, hasNextPage } = getPageStatus();
-        const snapshot = await fetchCommitPaginationSnapshot(pageInfo.owner, pageInfo.repo, pageInfo.branch);
+        if (document.querySelector('.custom-commits-pagination')) {
+            hideDefaultCommitPagination();
+            return;
+        }
+
+        const snapshot = await fetchCommitPaginationSnapshot(pageInfo.owner, pageInfo.repo, pageInfo.branch, {
+            pageInfo,
+            existingPagination
+        });
         if (!snapshot || !snapshot.totalCommits) return;
 
         if (document.querySelector('.custom-commits-pagination')) return;
-
-        const itemsPerPage = snapshot.itemsPerPage || getActualCommitsPerPage();
-        const totalPages = snapshot.totalPages || Math.ceil(snapshot.totalCommits / itemsPerPage);
-        const currentPage = getCurrentCommitPage(itemsPerPage);
-        const pages = buildVisiblePages(totalPages, currentPage);
-        const hrefMap = new Map(Object.entries(snapshot.pageHrefs || {}).map(([pageNum, href]) => [parseInt(pageNum, 10), href]));
-        hrefMap.set(1, window.location.pathname);
-        const maxPreloadPage = Math.min(totalPages, currentPage + 4);
-
-        // Create container for improved pagination
-        const container = document.createElement('div');
-        container.className = 'custom-commits-pagination d-flex flex-justify-center my-4 py-3';
-        container.style.cssText = `
-            gap: 8px;
-            border-top: 1px solid var(--color-border-muted);
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
-            min-height: 44px;
-        `;
-
-        // Create button helper
-        const createBtn = (text, pageNum, isActive = false, isDisabled = false, href = null) => {
-            const btn = document.createElement(isDisabled ? 'span' : 'a');
-            btn.textContent = text;
-            btn.className = `btn btn-sm d-flex flex-items-center flex-justify-center ${isActive ? 'btn-primary' : ''} ${isDisabled ? 'disabled' : ''}`;
-            btn.style.cssText = `
-                min-width: 32px;
-                height: 32px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                flex-shrink: 0;
-            `;
-            if (!isDisabled && href) {
-                btn.href = href;
-            }
-            return btn;
-        };
-
-        const navigateToCommitPage = async (pageNum) => {
-            if (pageNum <= 1) {
-                window.location.href = window.location.pathname;
-                return;
-            }
-
-            const cachedHref = hrefMap.get(pageNum);
-            if (cachedHref) {
-                window.location.href = cachedHref;
-                return;
-            }
-
-            const refreshedSnapshot = await refreshCommitPaginationSnapshot(pageInfo.owner, pageInfo.repo, pageInfo.branch, cachedCommitRepoKey, snapshot);
-            const refreshedHref = refreshedSnapshot?.pageHrefs ? refreshedSnapshot.pageHrefs[pageNum] : null;
-            if (refreshedHref) {
-                window.location.href = refreshedHref;
-            }
-        };
-
-        // Add Previous button
-        let prevHref = null;
-        if (!isFirstPage && currentPage > 1) {
-            if (currentPage === 2) {
-                // Go back to page 1 (no cursor)
-                prevHref = window.location.pathname;
-            } else {
-                // Calculate the cursor for the previous page
-                const currentOffset = getCommitAfterOffset() || 0;
-                const newOffset = Math.max(0, currentOffset - itemsPerPage);
-                if (newOffset > 0) {
-                    // Extract the commit SHA from current after parameter
-                    const rawMatch = window.location.search.match(/[?&]after=([^&+]+)/);
-                    const commitSha = rawMatch ? rawMatch[1] : '';
-                    prevHref = `${window.location.pathname}?after=${commitSha}+${newOffset}`;
-                } else {
-                    // First page has no cursor
-                    prevHref = window.location.pathname;
-                }
-            }
-        }
-        container.appendChild(createBtn('Previous', 0, false, isFirstPage, prevHref));
-
-        // Add page number buttons
-        let lastPage = 0;
-        for (const pageNum of pages) {
-            if (lastPage !== 0 && pageNum - lastPage > 1) {
-                const ellipsis = document.createElement('span');
-                ellipsis.textContent = '...';
-                ellipsis.className = 'd-flex flex-items-center px-2';
-                ellipsis.style.flexShrink = '0';
-                container.appendChild(ellipsis);
-            }
-
-            let pageHref = hrefMap.get(pageNum) || null;
-            if (pageNum === 1) {
-                // First page has no cursor
-                pageHref = `${window.location.pathname}`;
-            }
-
-            const btn = createBtn(pageNum, pageNum, pageNum === currentPage, false, pageHref);
-
-            if (!pageHref || pageNum > maxPreloadPage || pageNum === totalPages) {
-                btn.removeAttribute('href');
-                btn.addEventListener('click', async (e) => {
-                    e.preventDefault();
-                    btn.style.pointerEvents = 'none';
-                    await navigateToCommitPage(pageNum);
-                });
-            }
-            
-            container.appendChild(btn);
-            lastPage = pageNum;
-        }
-
-        // Add Next button
-        const nextBtn = existingPagination.querySelector('[data-component="Pagination.NextPage"]');
-        if (nextBtn) {
-            const href = hasNextPage ? (nextBtn.getAttribute('href') || nextBtn.href) : null;
-            container.appendChild(createBtn('Next', 0, false, !hasNextPage, href ? new URL(href, window.location.origin).href : null));
-        }
-
-        // Hide GitHub's default pagination
-        existingPagination.style.display = 'none';
-        clearExtraCommitPagination();
-
-        // Insert our improved pagination
-        if (existingPagination.parentElement) {
-            existingPagination.parentElement.insertBefore(container, existingPagination);
-        }
+        renderCommitPagination(snapshot, pageInfo, existingPagination);
     }
 
     let debounceFrame;

@@ -6,6 +6,8 @@
     let cachedExpiresAt = null;
     let githubToken = '';
     let refreshTimerId = null;
+    let repoInfoObserver = null;
+    let repoInfoDebounceTimeout = null;
     const CACHE_NAMESPACE = 'repo-info-cache';
     const FORCE_REFRESH_KEY = 'force-refresh-generation';
     let forceRefreshGeneration = 0;
@@ -46,7 +48,15 @@
             removeRepoInfo();
             return;
         }
+
+        if (hasVisibleRepoInfo()) return;
+
         displayRepoInfo();
+    }
+
+    function hasVisibleRepoInfo() {
+        const statsSection = document.getElementById('ghp-repo-stats-section');
+        return !!statsSection && statsSection.style.display !== 'none' && statsSection.childElementCount > 0;
     }
 
     function getNextRefreshDate() {
@@ -170,28 +180,30 @@
         let statsSection = document.getElementById('ghp-repo-stats-section');
         if (statsSection) return statsSection;
 
+        const insertionTarget = getStatsInsertionTarget();
+        if (!insertionTarget) return null;
+
         statsSection = document.createElement('div');
         statsSection.id = 'ghp-repo-stats-section';
         statsSection.className = 'BorderGrid-row';
 
+        insertionTarget.insertAdjacentElement('afterend', statsSection);
+
+        return statsSection;
+    }
+
+    function getStatsInsertionTarget() {
         const languagesSection = Array.from(document.querySelectorAll('.BorderGrid-row')).find(row =>
             row.textContent.includes('Languages')
         );
 
-        if (languagesSection) {
-            languagesSection.insertAdjacentElement('afterend', statsSection);
-        } else {
-            const overviewSection = document.querySelector('[data-testid="repo-details-container"]') ||
-                                  document.querySelector('.Layout-sidebar');
-            if (overviewSection) {
-                const firstRow = overviewSection.querySelector('.BorderGrid-row');
-                if (firstRow) {
-                    firstRow.insertAdjacentElement('afterend', statsSection);
-                }
-            }
-        }
+        if (languagesSection) return languagesSection;
 
-        return statsSection;
+        const overviewSection = document.querySelector('[data-testid="repo-details-container"]') ||
+                              document.querySelector('.Layout-sidebar');
+        if (!overviewSection) return null;
+
+        return overviewSection.querySelector('.BorderGrid-row');
     }
 
     function renderRepoInfo(stats) {
@@ -326,6 +338,8 @@
             return;
         }
 
+        if (hasVisibleRepoInfo()) return;
+
         const stats = await loadRepoInfo(owner, repo);
         if (!stats) return;
 
@@ -338,4 +352,21 @@
             statsSection.style.display = 'none';
         }
     }
+
+    function startRepoInfoObserver() {
+        if (repoInfoObserver || !document.body) return;
+
+        repoInfoObserver = new MutationObserver(() => {
+            if (repoInfoDebounceTimeout) clearTimeout(repoInfoDebounceTimeout);
+            repoInfoDebounceTimeout = setTimeout(() => {
+                if (isEnabled) {
+                    manageRepoInfo();
+                }
+            }, 250);
+        });
+
+        repoInfoObserver.observe(document.body, { childList: true, subtree: true });
+    }
+
+    startRepoInfoObserver();
 })();
