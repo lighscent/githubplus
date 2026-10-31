@@ -123,6 +123,14 @@
         });
     }
 
+    function getApiHeaders() {
+        return {
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            Authorization: `Bearer ${githubToken}`
+        };
+    }
+
     function ensureStyles() {
         if (document.getElementById('ghp-repo-stats-styles')) return;
 
@@ -158,14 +166,14 @@
                 font-size: 14px;
             }
 
-            .ghp-repo-stats-header {
+            .ghp-contributors-header {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
                 gap: 12px;
             }
 
-            .ghp-repo-refresh-countdown {
+            .ghp-refresh-countdown {
                 flex: 0 0 auto;
                 font-size: 12px;
                 font-weight: 400;
@@ -185,11 +193,27 @@
 
         statsSection = document.createElement('div');
         statsSection.id = 'ghp-repo-stats-section';
-        statsSection.className = 'BorderGrid-row';
+        statsSection.className = insertionTarget.classList.contains('BorderGrid-row')
+            ? 'BorderGrid-row'
+            : insertionTarget.className;
+        statsSection.dataset.ghpModernSidebar = String(!insertionTarget.classList.contains('BorderGrid-row'));
 
         insertionTarget.insertAdjacentElement('afterend', statsSection);
 
         return statsSection;
+    }
+
+    function getSidebarHeadingMarkup() {
+        const languagesHeading = Array.from(document.querySelectorAll('h2, h3')).find((heading) => {
+            return heading.textContent && heading.textContent.trim().startsWith('Languages');
+        });
+        if (!languagesHeading) return null;
+
+        return {
+            className: languagesHeading.className,
+            variant: languagesHeading.getAttribute('data-variant') || 'small',
+            component: languagesHeading.getAttribute('data-component') || 'Heading'
+        };
     }
 
     function getStatsInsertionTarget() {
@@ -198,6 +222,11 @@
         );
 
         if (languagesSection) return languagesSection;
+
+        const languagesHeading = Array.from(document.querySelectorAll('h2, h3')).find((heading) => {
+            return heading.textContent && heading.textContent.trim().startsWith('Languages');
+        });
+        if (languagesHeading?.parentElement) return languagesHeading.parentElement;
 
         const overviewSection = document.querySelector('[data-testid="repo-details-container"]') ||
                               document.querySelector('.Layout-sidebar');
@@ -212,11 +241,16 @@
         const statsSection = ensureStatsSection();
         if (!statsSection) return;
 
-        statsSection.innerHTML = `
-            <div class="BorderGrid-cell">
-                <h2 class="h4 tmp-mb-3 ghp-repo-stats-header">
+        if (statsSection.dataset.ghpModernSidebar === 'true') {
+            const heading = getSidebarHeadingMarkup();
+            if (!heading) return;
+
+            statsSection.innerHTML = `
+                <h2 class="${heading.className} ghp-contributors-header"
+                    data-variant="${heading.variant}"
+                    data-component="${heading.component}">
                     <span>Repository Statistics</span>
-                    <span id="ghp-repo-refresh-countdown" class="ghp-repo-refresh-countdown"></span>
+                    <span id="ghp-repo-refresh-countdown" class="ghp-refresh-countdown"></span>
                 </h2>
                 <div class="ghp-repo-stats">
                     <div class="ghp-repo-stats-item">
@@ -228,8 +262,27 @@
                         <span class="ghp-repo-stats-value">${stats.fileCount}</span>
                     </div>
                 </div>
-            </div>
-        `;
+            `;
+        } else {
+            statsSection.innerHTML = `
+                <div class="BorderGrid-cell">
+                    <h2 class="h4 tmp-mb-3 ghp-contributors-header">
+                        <span>Repository Statistics</span>
+                        <span id="ghp-repo-refresh-countdown" class="ghp-refresh-countdown"></span>
+                    </h2>
+                    <div class="ghp-repo-stats">
+                        <div class="ghp-repo-stats-item">
+                            <span class="ghp-repo-stats-label">Repository Size</span>
+                            <span class="ghp-repo-stats-value">${stats.sizeDisplay}</span>
+                        </div>
+                        <div class="ghp-repo-stats-item">
+                            <span class="ghp-repo-stats-label">Total Files</span>
+                            <span class="ghp-repo-stats-value">${stats.fileCount}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
 
         statsSection.style.display = '';
         updateRefreshCountdown();
@@ -269,14 +322,12 @@
                 // If no token is set, we can still display a valid stored cache but cannot refresh it.
                 if (!githubToken) return null;
 
-                const headers = {};
-                if (githubToken) {
-                    headers['Authorization'] = `token ${githubToken}`;
-                }
+                const headers = getApiHeaders();
                 const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
                 if (!response.ok) return null;
 
                 const data = await response.json();
+                if (!data || typeof data.size !== 'number' || !data.default_branch) return null;
                 const sizeInKB = Math.round(data.size);
                 const sizeDisplay = sizeInKB > 1024
                     ? `${(sizeInKB / 1024).toFixed(1)} MB`

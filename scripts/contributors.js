@@ -205,6 +205,14 @@
         return `${CACHE_NAMESPACE}:${repoKey}`;
     }
 
+    function getApiHeaders() {
+        return {
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            Authorization: `Bearer ${githubToken}`
+        };
+    }
+
     function readStoredCache(repoKey) {
         return new Promise((resolve) => {
             chrome.storage.local.get(getCacheKey(repoKey), (items) => {
@@ -255,24 +263,28 @@
                 // If no token is set, we can still display a valid stored cache but cannot refresh it.
                 if (!githubToken) return null;
 
-                const headers = {};
-                if (githubToken) {
-                    headers['Authorization'] = `token ${githubToken}`;
-                }
-                const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contributors?per_page=100`, { headers });
+                const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contributors?per_page=100`, {
+                    headers: getApiHeaders()
+                });
                 if (!response.ok) return null;
 
                 const contributors = await response.json();
+                if (!Array.isArray(contributors)) return null;
                 const contributorMap = {};
 
                 contributors.forEach(contrib => {
+                    if (!contrib || typeof contrib.login !== 'string' || typeof contrib.contributions !== 'number') {
+                        return;
+                    }
+
                     contributorMap[contrib.login.toLowerCase()] = {
                         commits: contrib.contributions,
                         id: contrib.id
                     };
                 });
 
-                const totalCommits = contributors.reduce((sum, c) => sum + c.contributions, 0);
+                const totalCommits = Object.values(contributorMap)
+                    .reduce((sum, contrib) => sum + contrib.commits, 0);
 
                 contributorCache = { map: contributorMap, total: totalCommits };
                 cachedExpiresAt = nextRefreshAt;
@@ -299,7 +311,13 @@
 
         injectStyles();
 
-        const contributorItems = document.querySelectorAll('li.mb-2.d-flex');
+        const heading = Array.from(document.querySelectorAll('h2, h3')).find((el) => {
+            return el.textContent && el.textContent.trim().startsWith('Contributors');
+        });
+        const contributorContainer = heading?.parentElement;
+        const contributorItems = contributorContainer
+            ? contributorContainer.querySelectorAll('li, [data-hovercard-type="user"]')
+            : document.querySelectorAll('li.mb-2.d-flex');
         if (!contributorItems.length) {
             removeAllStats();
             return;
@@ -315,7 +333,12 @@
 
         const { map: contributorMap, total: totalCommits } = data;
 
-        contributorItems.forEach(listItem => {
+        contributorItems.forEach(item => {
+            const listItem = item.matches('[data-hovercard-type="user"]')
+                ? item.closest('li') || item.parentElement
+                : item;
+            if (!listItem) return;
+
             // Skip if already enhanced
             if (listItem.querySelector('.ghp-contrib-stats')) return;
 
@@ -324,10 +347,13 @@
             if (!userLink) return;
 
             // Get username from href
-            const match = userLink.href.match(/\/([^\/]+)$/);
-            if (!match) return;
-
-            const username = match[1].toLowerCase();
+            let username;
+            try {
+                username = new URL(userLink.href).pathname.split('/').filter(Boolean).pop()?.toLowerCase();
+            } catch (error) {
+                return;
+            }
+            if (!username) return;
             const contrib = contributorMap[username];
 
             if (!contrib) return;
