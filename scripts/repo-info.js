@@ -49,7 +49,10 @@
             return;
         }
 
-        if (hasVisibleRepoInfo()) return;
+        if (hasVisibleRepoInfo()) {
+            ensureStatsSection();
+            return;
+        }
 
         displayRepoInfo();
     }
@@ -131,6 +134,14 @@
         };
     }
 
+    function getApiHeaders() {
+        return {
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            Authorization: `Bearer ${githubToken}`
+        };
+    }
+
     function ensureStyles() {
         if (document.getElementById('ghp-repo-stats-styles')) return;
 
@@ -167,12 +178,14 @@
             }
 
             .ghp-contributors-header {
+            .ghp-contributors-header {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
                 gap: 12px;
             }
 
+            .ghp-refresh-countdown {
             .ghp-refresh-countdown {
                 flex: 0 0 auto;
                 font-size: 12px;
@@ -185,22 +198,41 @@
     }
 
     function ensureStatsSection() {
-        let statsSection = document.getElementById('ghp-repo-stats-section');
-        if (statsSection) return statsSection;
-
         const insertionTarget = getStatsInsertionTarget();
         if (!insertionTarget) return null;
 
-        statsSection = document.createElement('div');
-        statsSection.id = 'ghp-repo-stats-section';
-        statsSection.className = insertionTarget.classList.contains('BorderGrid-row')
+        let statsSection = document.getElementById('ghp-repo-stats-section');
+        if (!statsSection) {
+            statsSection = document.createElement('div');
+            statsSection.id = 'ghp-repo-stats-section';
+        }
+        const isModernSidebar = !insertionTarget.classList.contains('BorderGrid-row');
+        statsSection.className = isModernSidebar ? insertionTarget.className : insertionTarget.classList.contains('BorderGrid-row')
             ? 'BorderGrid-row'
             : insertionTarget.className;
         statsSection.dataset.ghpModernSidebar = String(!insertionTarget.classList.contains('BorderGrid-row'));
+        statsSection.dataset.ghpModernSidebar = String(isModernSidebar);
 
-        insertionTarget.insertAdjacentElement('afterend', statsSection);
+        if (statsSection.previousElementSibling !== insertionTarget) {
+            insertionTarget.insertAdjacentElement('afterend', statsSection);
+        }
 
         return statsSection;
+    }
+
+    function getSidebarHeadingMarkup() {
+        const languagesHeading = Array.from(document.querySelectorAll('h2[data-component="Heading"], h3[data-component="Heading"], h2, h3')).find((heading) => {
+            return Array.from(heading.querySelectorAll('span')).some((span) => {
+                return span.textContent?.trim() === 'Languages';
+            }) || heading.textContent?.trim() === 'Languages';
+        });
+        if (!languagesHeading) return null;
+
+        return {
+            className: languagesHeading.className,
+            variant: languagesHeading.getAttribute('data-variant') || 'small',
+            component: languagesHeading.getAttribute('data-component') || 'Heading'
+        };
     }
 
     function getSidebarHeadingMarkup() {
@@ -217,9 +249,11 @@
     }
 
     function getStatsInsertionTarget() {
-        const languagesSection = Array.from(document.querySelectorAll('.BorderGrid-row')).find(row =>
-            row.textContent.includes('Languages')
-        );
+        const languagesSection = Array.from(document.querySelectorAll('.BorderGrid-row')).find((row) => {
+            return Array.from(row.querySelectorAll('h2, h3')).some((heading) => {
+                return heading.textContent?.trim() === 'Languages';
+            });
+        });
 
         if (languagesSection) return languagesSection;
 
@@ -228,11 +262,28 @@
         });
         if (languagesHeading?.parentElement) return languagesHeading.parentElement;
 
-        const overviewSection = document.querySelector('[data-testid="repo-details-container"]') ||
-                              document.querySelector('.Layout-sidebar');
-        if (!overviewSection) return null;
+        const languagesHeading = Array.from(document.querySelectorAll('h2, h3')).find((heading) => {
+            return heading.textContent && heading.textContent.trim().startsWith('Languages');
+        });
+        if (languagesHeading?.parentElement) return languagesHeading.parentElement;
 
-        return overviewSection.querySelector('.BorderGrid-row');
+        const languagesHeading = Array.from(document.querySelectorAll('h2, h3')).find((heading) => {
+            return Array.from(heading.querySelectorAll('span')).some((span) => {
+                return span.textContent?.trim() === 'Languages';
+            }) || heading.textContent?.trim() === 'Languages';
+        });
+        if (languagesHeading) {
+            let section = languagesHeading.parentElement;
+            while (section && section !== document.body) {
+                if (Array.from(section.classList).some(className => className.startsWith('sidebarSection'))) {
+                    return section;
+                }
+                section = section.parentElement;
+            }
+            return languagesHeading.parentElement;
+        }
+
+        return null;
     }
 
     function renderRepoInfo(stats) {
@@ -240,6 +291,10 @@
 
         const statsSection = ensureStatsSection();
         if (!statsSection) return;
+
+        if (statsSection.dataset.ghpModernSidebar === 'true') {
+            const heading = getSidebarHeadingMarkup();
+            if (!heading) return;
 
         if (statsSection.dataset.ghpModernSidebar === 'true') {
             const heading = getSidebarHeadingMarkup();
@@ -323,10 +378,12 @@
                 if (!githubToken) return null;
 
                 const headers = getApiHeaders();
+                const headers = getApiHeaders();
                 const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
                 if (!response.ok) return null;
 
                 const data = await response.json();
+                if (!data || typeof data.size !== 'number' || !data.default_branch) return null;
                 if (!data || typeof data.size !== 'number' || !data.default_branch) return null;
                 const sizeInKB = Math.round(data.size);
                 const sizeDisplay = sizeInKB > 1024
@@ -414,6 +471,16 @@
                     manageRepoInfo();
                 }
             }, 250);
+
+            // GitHub replaces the sidebar after the initial render. Re-apply
+            // placement after those asynchronous updates have settled.
+            [750, 1500, 3000].forEach((delay) => {
+                window.setTimeout(() => {
+                    if (isEnabled && hasVisibleRepoInfo()) {
+                        ensureStatsSection();
+                    }
+                }, delay);
+            });
         });
 
         repoInfoObserver.observe(document.body, { childList: true, subtree: true });

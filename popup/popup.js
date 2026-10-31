@@ -13,6 +13,17 @@ const FORCE_REFRESH_KEY = 'force-refresh-generation';
 let currentView = 'features';
 let savedTokenValue = DEFAULT_SETTINGS['github-token'];
 
+function sendSettingMessage(tabId, key, value) {
+    chrome.tabs.sendMessage(tabId, {
+        type: 'SETTINGS_CHANGED',
+        setting: key,
+        value: value
+    }, () => {
+        // Reading lastError prevents Chrome from reporting missing content scripts.
+        void chrome.runtime.lastError;
+    });
+}
+
 // Load version from manifest
 function loadVersion() {
     const versionEl = document.getElementById('version');
@@ -46,13 +57,7 @@ function saveSetting(key, value) {
         // Notify content scripts about the change
         chrome.tabs.query({ url: 'https://github.com/*' }, (tabs) => {
             tabs.forEach(tab => {
-                chrome.tabs.sendMessage(tab.id, {
-                    type: 'SETTINGS_CHANGED',
-                    setting: key,
-                    value: value
-                }).catch(() => {
-                    // Tab might not have content script loaded
-                });
+                sendSettingMessage(tab.id, key, value);
             });
         });
     });
@@ -66,13 +71,7 @@ function saveSetting(key, value) {
 function broadcastSettingChange(key, value) {
     chrome.tabs.query({ url: 'https://github.com/*' }, (tabs) => {
         tabs.forEach(tab => {
-            chrome.tabs.sendMessage(tab.id, {
-                type: 'SETTINGS_CHANGED',
-                setting: key,
-                value: value
-            }).catch(() => {
-                // Tab might not have content script loaded
-            });
+            sendSettingMessage(tab.id, key, value);
         });
     });
 }
