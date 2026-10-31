@@ -49,7 +49,10 @@
             return;
         }
 
-        if (hasVisibleRepoInfo()) return;
+        if (hasVisibleRepoInfo()) {
+            ensureStatsSection();
+            return;
+        }
 
         displayRepoInfo();
     }
@@ -123,6 +126,14 @@
         });
     }
 
+    function getApiHeaders() {
+        return {
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            Authorization: `Bearer ${githubToken}`
+        };
+    }
+
     function ensureStyles() {
         if (document.getElementById('ghp-repo-stats-styles')) return;
 
@@ -158,14 +169,14 @@
                 font-size: 14px;
             }
 
-            .ghp-repo-stats-header {
+            .ghp-contributors-header {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
                 gap: 12px;
             }
 
-            .ghp-repo-refresh-countdown {
+            .ghp-refresh-countdown {
                 flex: 0 0 auto;
                 font-size: 12px;
                 font-weight: 400;
@@ -177,33 +188,66 @@
     }
 
     function ensureStatsSection() {
-        let statsSection = document.getElementById('ghp-repo-stats-section');
-        if (statsSection) return statsSection;
-
         const insertionTarget = getStatsInsertionTarget();
         if (!insertionTarget) return null;
 
-        statsSection = document.createElement('div');
-        statsSection.id = 'ghp-repo-stats-section';
-        statsSection.className = 'BorderGrid-row';
+        let statsSection = document.getElementById('ghp-repo-stats-section');
+        if (!statsSection) {
+            statsSection = document.createElement('div');
+            statsSection.id = 'ghp-repo-stats-section';
+        }
+        const isModernSidebar = !insertionTarget.classList.contains('BorderGrid-row');
+        statsSection.className = isModernSidebar ? insertionTarget.className : 'BorderGrid-row';
+        statsSection.dataset.ghpModernSidebar = String(isModernSidebar);
 
-        insertionTarget.insertAdjacentElement('afterend', statsSection);
+        if (statsSection.previousElementSibling !== insertionTarget) {
+            insertionTarget.insertAdjacentElement('afterend', statsSection);
+        }
 
         return statsSection;
     }
 
+    function getSidebarHeadingMarkup() {
+        const languagesHeading = Array.from(document.querySelectorAll('h2[data-component="Heading"], h3[data-component="Heading"], h2, h3')).find((heading) => {
+            return Array.from(heading.querySelectorAll('span')).some((span) => {
+                return span.textContent?.trim() === 'Languages';
+            }) || heading.textContent?.trim() === 'Languages';
+        });
+        if (!languagesHeading) return null;
+
+        return {
+            className: languagesHeading.className,
+            variant: languagesHeading.getAttribute('data-variant') || 'small',
+            component: languagesHeading.getAttribute('data-component') || 'Heading'
+        };
+    }
+
     function getStatsInsertionTarget() {
-        const languagesSection = Array.from(document.querySelectorAll('.BorderGrid-row')).find(row =>
-            row.textContent.includes('Languages')
-        );
+        const languagesSection = Array.from(document.querySelectorAll('.BorderGrid-row')).find((row) => {
+            return Array.from(row.querySelectorAll('h2, h3')).some((heading) => {
+                return heading.textContent?.trim() === 'Languages';
+            });
+        });
 
         if (languagesSection) return languagesSection;
 
-        const overviewSection = document.querySelector('[data-testid="repo-details-container"]') ||
-                              document.querySelector('.Layout-sidebar');
-        if (!overviewSection) return null;
+        const languagesHeading = Array.from(document.querySelectorAll('h2, h3')).find((heading) => {
+            return Array.from(heading.querySelectorAll('span')).some((span) => {
+                return span.textContent?.trim() === 'Languages';
+            }) || heading.textContent?.trim() === 'Languages';
+        });
+        if (languagesHeading) {
+            let section = languagesHeading.parentElement;
+            while (section && section !== document.body) {
+                if (Array.from(section.classList).some(className => className.startsWith('sidebarSection'))) {
+                    return section;
+                }
+                section = section.parentElement;
+            }
+            return languagesHeading.parentElement;
+        }
 
-        return overviewSection.querySelector('.BorderGrid-row');
+        return null;
     }
 
     function renderRepoInfo(stats) {
@@ -212,11 +256,16 @@
         const statsSection = ensureStatsSection();
         if (!statsSection) return;
 
-        statsSection.innerHTML = `
-            <div class="BorderGrid-cell">
-                <h2 class="h4 tmp-mb-3 ghp-repo-stats-header">
+        if (statsSection.dataset.ghpModernSidebar === 'true') {
+            const heading = getSidebarHeadingMarkup();
+            if (!heading) return;
+
+            statsSection.innerHTML = `
+                <h2 class="${heading.className} ghp-contributors-header"
+                    data-variant="${heading.variant}"
+                    data-component="${heading.component}">
                     <span>Repository Statistics</span>
-                    <span id="ghp-repo-refresh-countdown" class="ghp-repo-refresh-countdown"></span>
+                    <span id="ghp-repo-refresh-countdown" class="ghp-refresh-countdown"></span>
                 </h2>
                 <div class="ghp-repo-stats">
                     <div class="ghp-repo-stats-item">
@@ -228,8 +277,27 @@
                         <span class="ghp-repo-stats-value">${stats.fileCount}</span>
                     </div>
                 </div>
-            </div>
-        `;
+            `;
+        } else {
+            statsSection.innerHTML = `
+                <div class="BorderGrid-cell">
+                    <h2 class="h4 tmp-mb-3 ghp-contributors-header">
+                        <span>Repository Statistics</span>
+                        <span id="ghp-repo-refresh-countdown" class="ghp-refresh-countdown"></span>
+                    </h2>
+                    <div class="ghp-repo-stats">
+                        <div class="ghp-repo-stats-item">
+                            <span class="ghp-repo-stats-label">Repository Size</span>
+                            <span class="ghp-repo-stats-value">${stats.sizeDisplay}</span>
+                        </div>
+                        <div class="ghp-repo-stats-item">
+                            <span class="ghp-repo-stats-label">Total Files</span>
+                            <span class="ghp-repo-stats-value">${stats.fileCount}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
 
         statsSection.style.display = '';
         updateRefreshCountdown();
@@ -269,14 +337,12 @@
                 // If no token is set, we can still display a valid stored cache but cannot refresh it.
                 if (!githubToken) return null;
 
-                const headers = {};
-                if (githubToken) {
-                    headers['Authorization'] = `token ${githubToken}`;
-                }
+                const headers = getApiHeaders();
                 const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
                 if (!response.ok) return null;
 
                 const data = await response.json();
+                if (!data || typeof data.size !== 'number' || !data.default_branch) return null;
                 const sizeInKB = Math.round(data.size);
                 const sizeDisplay = sizeInKB > 1024
                     ? `${(sizeInKB / 1024).toFixed(1)} MB`
@@ -363,6 +429,16 @@
                     manageRepoInfo();
                 }
             }, 250);
+
+            // GitHub replaces the sidebar after the initial render. Re-apply
+            // placement after those asynchronous updates have settled.
+            [750, 1500, 3000].forEach((delay) => {
+                window.setTimeout(() => {
+                    if (isEnabled && hasVisibleRepoInfo()) {
+                        ensureStatsSection();
+                    }
+                }, delay);
+            });
         });
 
         repoInfoObserver.observe(document.body, { childList: true, subtree: true });
