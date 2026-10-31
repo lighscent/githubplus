@@ -134,14 +134,6 @@
         };
     }
 
-    function getApiHeaders() {
-        return {
-            Accept: 'application/vnd.github+json',
-            'X-GitHub-Api-Version': '2022-11-28',
-            Authorization: `Bearer ${githubToken}`
-        };
-    }
-
     function ensureStyles() {
         if (document.getElementById('ghp-repo-stats-styles')) return;
 
@@ -178,14 +170,12 @@
             }
 
             .ghp-contributors-header {
-            .ghp-contributors-header {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
                 gap: 12px;
             }
 
-            .ghp-refresh-countdown {
             .ghp-refresh-countdown {
                 flex: 0 0 auto;
                 font-size: 12px;
@@ -207,10 +197,7 @@
             statsSection.id = 'ghp-repo-stats-section';
         }
         const isModernSidebar = !insertionTarget.classList.contains('BorderGrid-row');
-        statsSection.className = isModernSidebar ? insertionTarget.className : insertionTarget.classList.contains('BorderGrid-row')
-            ? 'BorderGrid-row'
-            : insertionTarget.className;
-        statsSection.dataset.ghpModernSidebar = String(!insertionTarget.classList.contains('BorderGrid-row'));
+        statsSection.className = isModernSidebar ? insertionTarget.className : 'BorderGrid-row';
         statsSection.dataset.ghpModernSidebar = String(isModernSidebar);
 
         if (statsSection.previousElementSibling !== insertionTarget) {
@@ -235,19 +222,6 @@
         };
     }
 
-    function getSidebarHeadingMarkup() {
-        const languagesHeading = Array.from(document.querySelectorAll('h2, h3')).find((heading) => {
-            return heading.textContent && heading.textContent.trim().startsWith('Languages');
-        });
-        if (!languagesHeading) return null;
-
-        return {
-            className: languagesHeading.className,
-            variant: languagesHeading.getAttribute('data-variant') || 'small',
-            component: languagesHeading.getAttribute('data-component') || 'Heading'
-        };
-    }
-
     function getStatsInsertionTarget() {
         const languagesSection = Array.from(document.querySelectorAll('.BorderGrid-row')).find((row) => {
             return Array.from(row.querySelectorAll('h2, h3')).some((heading) => {
@@ -256,16 +230,6 @@
         });
 
         if (languagesSection) return languagesSection;
-
-        const languagesHeading = Array.from(document.querySelectorAll('h2, h3')).find((heading) => {
-            return heading.textContent && heading.textContent.trim().startsWith('Languages');
-        });
-        if (languagesHeading?.parentElement) return languagesHeading.parentElement;
-
-        const languagesHeading = Array.from(document.querySelectorAll('h2, h3')).find((heading) => {
-            return heading.textContent && heading.textContent.trim().startsWith('Languages');
-        });
-        if (languagesHeading?.parentElement) return languagesHeading.parentElement;
 
         const languagesHeading = Array.from(document.querySelectorAll('h2, h3')).find((heading) => {
             return Array.from(heading.querySelectorAll('span')).some((span) => {
@@ -291,10 +255,6 @@
 
         const statsSection = ensureStatsSection();
         if (!statsSection) return;
-
-        if (statsSection.dataset.ghpModernSidebar === 'true') {
-            const heading = getSidebarHeadingMarkup();
-            if (!heading) return;
 
         if (statsSection.dataset.ghpModernSidebar === 'true') {
             const heading = getSidebarHeadingMarkup();
@@ -378,12 +338,10 @@
                 if (!githubToken) return null;
 
                 const headers = getApiHeaders();
-                const headers = getApiHeaders();
                 const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
                 if (!response.ok) return null;
 
                 const data = await response.json();
-                if (!data || typeof data.size !== 'number' || !data.default_branch) return null;
                 if (!data || typeof data.size !== 'number' || !data.default_branch) return null;
                 const sizeInKB = Math.round(data.size);
                 const sizeDisplay = sizeInKB > 1024
